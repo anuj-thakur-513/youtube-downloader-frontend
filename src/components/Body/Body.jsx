@@ -1,8 +1,34 @@
 import { Container, Form, Button, Row, Col, Card } from "react-bootstrap";
 import { BsDownload } from "react-icons/bs";
 import "./body.css";
+import { useRef, useState } from "react";
+import axios from "axios";
+import download from "downloadjs";
 
 const Body = () => {
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  const enteredUrl = useRef("");
+
+  const onDownloadClick = async () => {
+    const linkValue = enteredUrl.current.value;
+    if (!linkValue || linkValue.trim() === "") {
+      setErrorMessage(
+        "Please enter a YouTube video or playlist link to proceed."
+      );
+    } else {
+      setErrorMessage(null);
+      const res = await axios.get("/api/download", {
+        params: {
+          url: linkValue.trim(),
+        },
+        responseType: "blob",
+      });
+
+      download(res.data, `${res.headers.get("X-File-Title")}`);
+    }
+  };
+
   return (
     <Container className="d-flex flex-column justify-content-start vh-100 py-4">
       {/* Heading and Form */}
@@ -23,8 +49,9 @@ const Body = () => {
               <Form className="d-flex">
                 <Form.Control
                   type="text"
+                  ref={enteredUrl}
                   placeholder="Paste Video or Playlist link"
-                  className="me-2"
+                  className="me-2 mb-2"
                   style={{
                     minWidth: "300px",
                     borderColor: "red",
@@ -35,12 +62,16 @@ const Body = () => {
                 />
                 <Button
                   variant="danger"
-                  className="download-button d-flex align-items-center"
+                  className="download-button d-flex align-items-center mb-2"
+                  onClick={onDownloadClick}
                 >
                   <span className="download-text">Download</span>
                   <BsDownload className="download-icon" />
                 </Button>
               </Form>
+              {errorMessage && (
+                <p className="text-danger mt-2">{errorMessage}</p>
+              )}
             </Col>
           </Row>
         </div>
