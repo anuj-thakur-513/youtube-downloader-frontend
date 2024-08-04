@@ -1,0 +1,26 @@
+.download-button {
+  transition: width 0.25s ease-in-out;
+  overflow: hidden;
+  width: 120px;
+}
+
+.download-button:hover {
+  width: 190px;
+}
+
+.download-icon {
+  display: none;
+}
+
+.download-button:hover .download-icon {
+  display: inline-block;
+  margin-left: 18px;
+}
+
+.hover-shadow {
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 8px 16px rgba(255, 0, 0, 0.5);
+}
