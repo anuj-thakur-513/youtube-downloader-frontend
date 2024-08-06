@@ -1,12 +1,23 @@
-import { Container, Form, Button, Row, Col, Card } from "react-bootstrap";
+import {
+  Container,
+  Form,
+  Button,
+  Row,
+  Col,
+  Card,
+  Spinner,
+} from "react-bootstrap";
 import { BsDownload } from "react-icons/bs";
 import "./body.css";
 import { useRef, useState } from "react";
 import axios from "axios";
-import download from "downloadjs";
+
+import { isPlaylist } from "../../utils/youtube";
 
 const Body = () => {
   const [errorMessage, setErrorMessage] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadText, setDownloadText] = useState("");
 
   const enteredUrl = useRef("");
 
@@ -18,14 +29,35 @@ const Body = () => {
       );
     } else {
       setErrorMessage(null);
-      const res = await axios.get("/api/download", {
-        params: {
-          url: linkValue.trim(),
-        },
-        responseType: "blob",
-      });
+      setIsDownloading(true);
+      if (!isPlaylist(linkValue.trim())) {
+        setDownloadText("Video");
+      } else {
+        setDownloadText("Playlist");
+      }
 
-      download(res.data, `${res.headers.get("X-File-Title")}`);
+      try {
+        const response = await axios.get("/api/download", {
+          params: {
+            url: linkValue.trim(),
+          },
+          responseType: "blob",
+        });
+        const blob = new Blob([response.data]);
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = response.headers["x-file-title"];
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        setErrorMessage("An error occurred while downloading the file.");
+      } finally {
+        setIsDownloading(false);
+        enteredUrl.current.value = "";
+      }
     }
   };
 
@@ -35,11 +67,11 @@ const Body = () => {
       <div className="text-center mb-5">
         <h2 className="text-danger">
           World's First YouTube Downloader That Downloads Entire Playlists in
-          One Go
+          One Click!
         </h2>
         <p className="lead mt-2">
           Easily download your favorite YouTube videos and playlists with just a
-          few clicks. Our tool supports bulk downloads to save you time and
+          single click. Our tool supports bulk downloads to save you time and
           effort.
         </p>
 
@@ -60,14 +92,24 @@ const Body = () => {
                   onFocus={(e) => (e.target.style.boxShadow = "0 0 10px red")}
                   onBlur={(e) => (e.target.style.boxShadow = "none")}
                 />
-                <Button
-                  variant="danger"
-                  className="download-button d-flex align-items-center mb-2"
-                  onClick={onDownloadClick}
-                >
-                  <span className="download-text">Download</span>
-                  <BsDownload className="download-icon" />
-                </Button>
+                {!isDownloading ? (
+                  <Button
+                    variant="danger"
+                    className="download-button d-flex align-items-center mb-2"
+                    onClick={onDownloadClick}
+                  >
+                    <span className="download-text">Download</span>
+                    <BsDownload className="download-icon" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="danger"
+                    className="disabled d-flex align-items-center mb-2"
+                    onClick={() => {}}
+                  >
+                    <span className="download-text">Download</span>
+                  </Button>
+                )}
               </Form>
               {errorMessage && (
                 <p className="text-danger mt-2">{errorMessage}</p>
@@ -75,6 +117,30 @@ const Body = () => {
             </Col>
           </Row>
         </div>
+
+        {/* Circular Progress Spinner */}
+        {isDownloading && (
+          <div className="d-flex flex-column align-items-center mt-3">
+            <Spinner
+              animation="border"
+              role="status"
+              variant="danger"
+              style={{ width: "3rem", height: "3rem" }}
+            >
+              <span className="visually-hidden">Downloading...</span>
+            </Spinner>
+            <h2 className="mt-2 text-center text-danger">
+              Downloading {downloadText}
+            </h2>
+            <p className="mt-2 text-center">
+              Your download has started and is in progress on our servers.
+              <br />
+              <strong>
+                Do not close this tab or browser during the download process.
+              </strong>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Additional Content */}
