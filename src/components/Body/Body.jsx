@@ -37,7 +37,7 @@ const Body = () => {
       }
 
       try {
-        const response = await axios.get("/api/download", {
+        const response = await axios.get("/api/video/download", {
           params: {
             url: linkValue.trim(),
           },
