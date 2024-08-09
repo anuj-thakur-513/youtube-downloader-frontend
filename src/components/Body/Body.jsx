@@ -7,57 +7,60 @@ import {
   Card,
   Spinner,
 } from "react-bootstrap";
-import { BsDownload } from "react-icons/bs";
+import { BsSearch } from "react-icons/bs";
 import "./body.css";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import axios from "axios";
-
-import { isPlaylist } from "../../utils/youtube";
+import VideoDetails from "../VideoDetails";
 
 const Body = () => {
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [searchErrorMessage, setSearchErrorMessage] = useState(null);
+  const [downloadErrorMessage, setDownloadErrorMessage] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [downloadText, setDownloadText] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [videoDetails, setVideoDetails] = useState(null);
 
   const enteredUrl = useRef("");
 
-  const onDownloadClick = async () => {
+  const fetchVideoDetails = useCallback(async (url) => {
+    setIsSearching(true);
+    setSearchErrorMessage(null);
+    try {
+      const response = await axios.get("/api/video/details", {
+        params: { url },
+      });
+      setVideoDetails(response.data.data);
+    } catch (error) {
+      setSearchErrorMessage("An error occurred while fetching video details.");
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (inputValue.trim() !== "") {
+        fetchVideoDetails(inputValue.trim());
+      }
+    }, 500); // 500ms debounce time
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputValue, fetchVideoDetails]);
+
+  const onSearchClick = async () => {
     const linkValue = enteredUrl.current.value;
     if (!linkValue || linkValue.trim() === "") {
-      setErrorMessage(
+      setSearchErrorMessage(
         "Please enter a YouTube video or playlist link to proceed."
       );
     } else {
-      setErrorMessage(null);
-      setIsDownloading(true);
-      if (!isPlaylist(linkValue.trim())) {
-        setDownloadText("Video");
-      } else {
-        setDownloadText("Playlist");
-      }
-
-      try {
-        const response = await axios.get("/api/video/download", {
-          params: {
-            url: linkValue.trim(),
-          },
-          responseType: "blob",
-        });
-        const blob = new Blob([response.data]);
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = response.headers["x-file-title"];
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-      } catch (error) {
-        setErrorMessage("An error occurred while downloading the file.");
-      } finally {
-        setIsDownloading(false);
-        enteredUrl.current.value = "";
-      }
+      setSearchErrorMessage(null);
+      setDownloadErrorMessage(null);
+      fetchVideoDetails(linkValue.trim());
     }
   };
 
@@ -91,35 +94,29 @@ const Body = () => {
                   }}
                   onFocus={(e) => (e.target.style.boxShadow = "0 0 10px red")}
                   onBlur={(e) => (e.target.style.boxShadow = "none")}
+                  onChange={(e) => setInputValue(e.target.value)}
                 />
-                {!isDownloading ? (
-                  <Button
-                    variant="danger"
-                    className="download-button d-flex align-items-center mb-2"
-                    onClick={onDownloadClick}
-                  >
-                    <span className="download-text">Download</span>
-                    <BsDownload className="download-icon" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="danger"
-                    className="disabled d-flex align-items-center mb-2"
-                    onClick={() => {}}
-                  >
-                    <span className="download-text">Download</span>
-                  </Button>
-                )}
+                <Button
+                  variant="danger"
+                  className="search-button d-flex align-items-center mb-2"
+                  onClick={onSearchClick}
+                >
+                  <span className="download-text">Search</span>
+                  <BsSearch className="button-icon" />
+                </Button>
               </Form>
-              {errorMessage && (
-                <p className="text-danger mt-2">{errorMessage}</p>
+              {downloadErrorMessage && (
+                <p className="text-danger mt-2">{downloadErrorMessage}</p>
+              )}
+              {searchErrorMessage && (
+                <p className="text-danger mt-2">{searchErrorMessage}</p>
               )}
             </Col>
           </Row>
         </div>
 
         {/* Circular Progress Spinner */}
-        {isDownloading && (
+        {downloadErrorMessage === null && isDownloading && (
           <div className="d-flex flex-column align-items-center mt-3">
             <Spinner
               animation="border"
@@ -141,7 +138,33 @@ const Body = () => {
             </p>
           </div>
         )}
+        {isSearching && (
+          <div className="d-flex flex-column align-items-center mt-3">
+            <Spinner
+              animation="border"
+              role="status"
+              variant="danger"
+              style={{ width: "3rem", height: "3rem" }}
+            >
+              <span className="visually-hidden">Searching...</span>
+            </Spinner>
+            <h2 className="mt-2 text-center text-danger">
+              Searching {downloadText}
+            </h2>
+          </div>
+        )}
       </div>
+
+      {/* add the video details to be shown */}
+      {!isDownloading && !isSearching && videoDetails && (
+        <VideoDetails
+          videoDetails={videoDetails}
+          url={enteredUrl.current.value.trim()}
+          setIsDownloading={setIsDownloading}
+          setDownloadText={setDownloadText}
+          setDownloadErrorMessage={setDownloadErrorMessage}
+        />
+      )}
 
       {/* Additional Content */}
       <div className="text-center mt-auto mb-auto">
@@ -195,8 +218,7 @@ const Body = () => {
               <Card.Body>
                 <Card.Title>Secure Downloads</Card.Title>
                 <Card.Text>
-                  Our tool ensures secure downloads with no malware or unwanted
-                  software.
+                  Secure downloads with no malware or unwanted software.
                 </Card.Text>
               </Card.Body>
             </Card>
@@ -204,10 +226,9 @@ const Body = () => {
           <Col md={4}>
             <Card className="mb-3 hover-shadow">
               <Card.Body>
-                <Card.Title>Customizable Settings</Card.Title>
+                <Card.Title>Multiple Settings</Card.Title>
                 <Card.Text>
-                  Currently supports only high quality, with various settings
-                  and preferences to be introduced soon.
+                  Choose from multiple available formats. e.g. 1080p, 720p
                 </Card.Text>
               </Card.Body>
             </Card>

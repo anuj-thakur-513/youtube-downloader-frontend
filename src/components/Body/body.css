@@ -1,18 +1,18 @@
-.download-button {
+.search-button {
   transition: width 0.25s ease-in-out;
   overflow: hidden;
-  width: 120px;
+  width: 90px;
 }
 
-.download-button:hover {
-  width: 190px;
+.search-button:hover {
+  width: 150px;
 }
 
-.download-icon {
+.button-icon {
   display: none;
 }
 
-.download-button:hover .download-icon {
+.search-button:hover .button-icon {
   display: inline-block;
   margin-left: 18px;
 }
