@@ -14,6 +14,8 @@ const VideoDetails = ({
 
   const onDownloadClick = async (quality) => {
     setIsDownloading(true);
+    setDownloadErrorMessage(null);
+    console.log(quality);
 
     if (!isPlaylist(url)) {
       setDownloadText("Video");
